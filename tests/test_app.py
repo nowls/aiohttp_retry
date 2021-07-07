@@ -191,8 +191,7 @@ def test_retry_timeout_list():
     timeouts = [retry.get_timeout(x) for x in range(10)]
     assert timeouts == expected
 
-
-@pytest.mark.parametrize("attempts", [2, 3])
+@pytest.mark.parametrize("attempts", [0, 2, 3])
 async def test_change_urls_in_request(aiohttp_client, loop, attempts):
     retry_client, test_app = await get_retry_client_and_test_app_for_test(
         aiohttp_client,
@@ -208,7 +207,7 @@ async def test_change_urls_in_request(aiohttp_client, loop, attempts):
     await retry_client.close()
 
 
-@pytest.mark.parametrize("attempts", [2, 3])
+@pytest.mark.parametrize("attempts", [0, 2, 3])
 async def test_change_urls_as_tuple_in_request(aiohttp_client, loop, attempts):
     retry_client, test_app = await get_retry_client_and_test_app_for_test(
         aiohttp_client,

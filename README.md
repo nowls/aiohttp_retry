@@ -102,7 +102,7 @@ They are same as for `ClientSession`, but take one possible additional argument:
 class RetryOptionsBase:
     def __init__(
         self,
-        attempts: int = 3,  # How many times we should retry
+        attempts: int = 3,  # How many times we should retry, or 0 to retry infinitely
         statuses: Optional[Iterable[int]] = None,  # On which statuses we should retry
         exceptions: Optional[Iterable[Type[Exception]]] = None,  # On which exceptions we should retry
     ):
@@ -140,5 +140,5 @@ await retry_client.close()
 ```
 
 In this example we request ```/interval_error```, fail and then successfully request ```/ping```.
-If you specify less urls than ```attempts``` number in ```RetryOptions```, ```RetryClient``` will request last url at last attempts.
+If you specify less urls than ```attempts``` number in ```RetryOptions```, or if ```attempts``` is 0 indicating infinite retries, then ```RetryClient``` will request last url at last attempts.
 This means that in example above we would request ```/ping``` once again in case of failure.

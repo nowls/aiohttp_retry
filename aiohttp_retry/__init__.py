@@ -36,7 +36,7 @@ _URL_TYPE = Union[StrOrURL, List[StrOrURL], Tuple[StrOrURL, ...]]
 class RetryOptionsBase:
     def __init__(
         self,
-        attempts: int = 3,  # How many times we should retry
+        attempts: int = 3,  # How many times we should retry, or 0 to retry infinitely
         statuses: Optional[Iterable[int]] = None,  # On which statuses we should retry
         exceptions: Optional[Iterable[Type[Exception]]] = None,  # On which exceptions we should retry
     ):
@@ -57,7 +57,7 @@ class RetryOptionsBase:
 class ExponentialRetry(RetryOptionsBase):
     def __init__(
         self,
-        attempts: int = 3,  # How many times we should retry
+        attempts: int = 3,  # How many times we should retry, or 0 to retry infinitely
         start_timeout: float = 0.1,  # Base timeout time, then it exponentially grow
         max_timeout: float = 30.0,  # Max possible timeout between tries
         factor: float = 2.0,  # How much we increase timeout each time
@@ -84,7 +84,7 @@ def RetryOptions(*args: Any, **kwargs: Any) -> ExponentialRetry:
 class RandomRetry(RetryOptionsBase):
     def __init__(
         self,
-        attempts: int = 3,  # How many times we should retry
+        attempts: int = 3,  # How many times we should retry, or 0 to retry infinitely
         statuses: Optional[Iterable[int]] = None,  # On which statuses we should retry
         exceptions: Optional[Iterable[Type[Exception]]] = None,  # On which exceptions we should retry
         min_timeout: float = 0.1,  # Minimum possible timeout
@@ -116,6 +116,22 @@ class ListRetry(RetryOptionsBase):
         """timeouts from a defined list."""
         return self.timeouts[attempt]
 
+class _URLContainer:
+    def __init__(
+        self,
+        urls: Tuple[StrOrURL, ...],
+        attempts: int
+    ) -> None:
+        self._urls = urls
+        self._attempts = attempts
+
+    def __getitem__(self, index):
+        if index >= len(self._urls):
+            if self._attempts == 0:
+                return self._urls[-1]
+            else:
+                raise IndexError("URL tuple index out of range")
+        return self._urls[index]
 
 class _RequestContext:
     def __init__(
@@ -130,7 +146,7 @@ class _RequestContext:
     ) -> None:
         self._request = request
         self._method = method
-        self._urls = urls
+        self._urls = _URLContainer(urls, retry_options.attempts)
         self._logger = logger
         self._retry_options = retry_options
         self._kwargs = kwargs
@@ -145,7 +161,7 @@ class _RequestContext:
     async def _do_request(self) -> ClientResponse:
         current_attempt = 0
         while True:
-            self._logger.debug("Attempt {} out of {}".format(current_attempt, self._retry_options.attempts))
+            self._logger.debug("Attempt {} out of {}".format(current_attempt, self._retry_options.attempts or "unlimited"))
             if current_attempt > 0:
                 retry_wait = self._retry_options.get_timeout(current_attempt)
                 await asyncio.sleep(retry_wait)
@@ -162,7 +178,7 @@ class _RequestContext:
                     },
                 )
             except Exception as e:
-                if current_attempt < self._retry_options.attempts:
+                if self._retry_options.attempts == 0 or current_attempt < self._retry_options.attempts:
                     is_exc_valid = any([isinstance(e, exc) for exc in self._retry_options.exceptions])
                     if is_exc_valid:
                         continue
@@ -189,7 +205,8 @@ class _RequestContext:
 
 def _url_to_urls(url: _URL_TYPE, attempts: int) -> Tuple[StrOrURL, ...]:
     if isinstance(url, str):
-        return (url,) * attempts
+        size = 1 if attempts == 0 else attempts
+        return (url,) * size
 
     if isinstance(url, list):
         urls = tuple(url)
@@ -199,9 +216,9 @@ def _url_to_urls(url: _URL_TYPE, attempts: int) -> Tuple[StrOrURL, ...]:
         raise ValueError("you can pass url only by str or list/tuple")
 
     if len(urls) == 0:
-        raise ValueError("you can pass url by str or list/tuple with attempts count size")
+        raise ValueError("you can pass url by str or list/tuple with size > 0")
 
-    if len(urls) < attempts:
+    if attempts > 0 and len(urls) < attempts:
         return urls + (urls[-1],) * (attempts - len(url))
 
     return urls

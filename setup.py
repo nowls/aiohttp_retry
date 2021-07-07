@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 
 setup(
-    name='aiohttp_retry',
+    name='aiohttp_retry-nowls',
     version='2.4.0',
     description='Simple retry client for aiohttp',
     long_description=long_description,
@@ -19,7 +19,7 @@ setup(
     keywords='aiohttp retry client',
     author='Dmitry Inyutin',
     author_email='inyutin.da@gmail.com',
-    url='https://github.com/inyutin/aiohttp_retry',
+    url='https://github.com/nowls/aiohttp_retry',
     license='MIT',
     include_package_data=True,
     packages=find_packages(exclude=["tests", "tests.*"]),
